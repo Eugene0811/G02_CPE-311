@@ -76,8 +76,9 @@ int main()
 			showDecibel = decibel;
 			DisplayOnLCD();
 			//LL_TIM_OC_SetCompareCH1(TIM4, 255-sound_amplitude);
-			LL_TIM_OC_SetCompareCH1(TIM4, (255-sound_amplitude)*(255-127)/(255-0)+127);
+			LL_TIM_OC_SetCompareCH1(TIM4, (decibel)*(4095-0)/(110-40));
 			//DAC->DHR12R1 = sound_amplitude*(4095-2304)/(1024-0)+2304;
+			DAC->DHR12R1 = (110-decibel)*(4095-2304)/(110-40)+2304;
 		}
 		
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +187,8 @@ void TIM4_R_BASE_Config(void)
 	
 	timbase_initstructure.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 	timbase_initstructure.CounterMode = LL_TIM_COUNTERMODE_UP;
-	timbase_initstructure.Autoreload = 256 - 1;
-	timbase_initstructure.Prescaler = 1250 - 1;
+	timbase_initstructure.Autoreload = 1024 - 1;
+	timbase_initstructure.Prescaler = 314 - 1;
 	
 	LL_TIM_Init(TIM4, &timbase_initstructure);
 
