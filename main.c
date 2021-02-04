@@ -1,6 +1,7 @@
 #include "stm32l1xx.h"
 #include "stm32l1xx_ll_system.h"
 #include "stm32l1xx_ll_adc.h" 
+#include "stm32l1xx_ll_dac.h" 
 #include "stm32l1xx_ll_bus.h"
 #include "stm32l1xx_ll_gpio.h"
 #include "stm32l1xx_ll_pwr.h"
@@ -15,12 +16,17 @@
 uint16_t adc_data = 0, i = 0;
 uint16_t data_list[1000];
 uint16_t sound, sound_min, sound_max, sound_amplitude;
-uint8_t danger_cnt = 0;
+uint16_t danger_cnt = 0;
+uint8_t blink_state = 0;
 int decibel, showDecibel = 0;
 void SystemClock_Config(void);
 void ADC_Configuration(void);
 void TIM_BASE_DurationConfig(void);
 void DisplayOnLCD(void);
+void TIM4_R_OC_GPIO_Config(void);
+void TIM4_R_BASE_Config(void);
+void TIM4_R_OC_Config(void);
+void ADC_G_Config(void);
 
 int check;
 
@@ -31,12 +37,25 @@ int main()
 	LCD_GLASS_Init();
 	ADC_Configuration();
 	TIM_BASE_DurationConfig();
+	TIM4_R_OC_Config();
+	ADC_G_Config();
+	
 
 	while(1)
 	{
 		sound_min = 1024;
     sound_max = 0;
 		
+		//LL_DAC_ConvertData12RightAligned(DAC1,LL_DAC_CHANNEL_1, 0x00FF);
+		//DAC1->DHR12R1 = (255-25)*16;
+		//LL_TIM_OC_SetCompareCH1(TIM4, 25);
+		/*
+		LL_TIM_OC_SetCompareCH1(TIM4, i);
+		LL_TIM_OC_SetCompareCH1(TIM3, 255-i);
+		i = (i+1)%256;
+		LL_mDelay(10);
+		*/
+//////////////////////////////////////////////////////////////////////////		
 		
 		while(LL_TIM_IsActiveFlag_UPDATE(TIM2) == RESET)
 		{
@@ -57,23 +76,28 @@ int main()
 		{
 			showDecibel = decibel;
 			DisplayOnLCD();
+			//LL_TIM_OC_SetCompareCH1(TIM4, 255-sound_amplitude);
+			LL_TIM_OC_SetCompareCH1(TIM4, (decibel)*(4095-0)/(110-40));
+			//DAC->DHR12R1 = sound_amplitude*(4095-2304)/(1024-0)+2304;
+			DAC->DHR12R1 = (110-decibel)*(4095-2304)/(110-40)+2304;
 		}
-		/*
+
+		
+////////////////////////////////////////////////////////////////////////////////////////////////////
 		if(decibel > 85)
 		{
+			blink_state = 1;
 			danger_cnt++;
-			if(danger_cnt==20)
+			if(danger_cnt==100)
 			{
 				LCD_GLASS_Clear();
 				LCD_GLASS_DisplayString((uint8_t*)"danger");
 				LL_mDelay(500);
-				LCD_GLASS_Clear();
 				danger_cnt = 0;	
 			}	
 		}
 		else
-			danger_cnt = 0;	
-		*/
+			danger_cnt = 0;		
 	}
 }
 
@@ -87,40 +111,6 @@ void DisplayOnLCD(void)
 
 void ADC_Configuration(void)
 { 
-	/*
-	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
-	LL_GPIO_InitTypeDef GPIO_ADC_InitStructure;
-	
-	GPIO_ADC_InitStructure.Mode = LL_GPIO_MODE_ANALOG;
-	GPIO_ADC_InitStructure.Pull = LL_GPIO_PULL_NO;
-	GPIO_ADC_InitStructure.Pin = LL_GPIO_PIN_5;
-	GPIO_ADC_InitStructure.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
-	LL_GPIO_Init(GPIOA, &GPIO_ADC_InitStructure);
-	
-	LL_ADC_SetCommonClock(ADC1_COMMON, LL_ADC_CLOCK_ASYNC_DIV2);
-	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC1);
-  LL_ADC_InitTypeDef  ADC_InitStructure;
-	
-	LL_ADC_REG_SetSequencerDiscont(ADC1, LL_ADC_REG_SEQ_DISCONT_1RANK);
-
-	ADC_InitStructure.DataAlignment = LL_ADC_DATA_ALIGN_RIGHT;
-	ADC_InitStructure.Resolution = LL_ADC_RESOLUTION_12B;
-	ADC_InitStructure.SequencersScanMode = LL_ADC_SEQ_SCAN_ENABLE;
-
-  
-  LL_ADC_Init(ADC1, &ADC_InitStructure);
-	
-	
-	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_5, LL_ADC_SAMPLINGTIME_48CYCLES);
-	
-	LL_ADC_REG_InitTypeDef ADC_REG_InitStructure;
-	ADC_REG_InitStructure.ContinuousMode = LL_ADC_REG_SEQ_SCAN_DISABLE;
-	ADC_REG_InitStructure.SequencerLength = LL_ADC_REG_RANK_5;
-	
-	LL_ADC_REG_Init(ADC1, &ADC_REG_InitStructure);
-	
-  LL_ADC_Enable(ADC1);
-	*/
   RCC->AHBENR |= (1<<0);
 	GPIOA->MODER |= (3<<10);
 	RCC->CR |= (1<<0);
@@ -134,14 +124,28 @@ void ADC_Configuration(void)
 	ADC1-> SQR5 |= (5<<0);
 	ADC1-> CR2 |= (1<<0);
 	
-	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
-	LL_GPIO_InitTypeDef GPIO_InitStructure;
 	
-	GPIO_InitStructure.Mode = LL_GPIO_MODE_OUTPUT;
-	GPIO_InitStructure.Pull = LL_GPIO_PULL_NO;
-	GPIO_InitStructure.Pin = LL_GPIO_PIN_5 | LL_GPIO_PIN_6 | LL_GPIO_PIN_7;
-	GPIO_InitStructure.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
-	LL_GPIO_Init(GPIOB, &GPIO_InitStructure);
+}
+
+void ADC_G_Config(void)
+{
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_DAC1);
+	
+	LL_GPIO_InitTypeDef led_g_initstructure;
+	
+	led_g_initstructure.Mode = LL_GPIO_MODE_ANALOG;
+	led_g_initstructure.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	led_g_initstructure.Pin = LL_GPIO_PIN_4;
+	led_g_initstructure.Pull = LL_GPIO_PULL_NO;
+	led_g_initstructure.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+	LL_GPIO_Init(GPIOA, &led_g_initstructure);
+	
+	LL_DAC_InitTypeDef dac_g_initstructure;
+	
+	
+	LL_DAC_Enable(DAC1,LL_DAC_CHANNEL_1);
+	
 	
 }
 
@@ -153,7 +157,7 @@ void TIM_BASE_DurationConfig(void)
 	//Time-base configure
 	timbase_initstructure.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
 	timbase_initstructure.CounterMode = LL_TIM_COUNTERMODE_UP;
-	timbase_initstructure.Autoreload = 500 - 1;
+	timbase_initstructure.Autoreload = 100 - 1;
 	timbase_initstructure.Prescaler =  32000 - 1;
 	LL_TIM_Init(TIM2, &timbase_initstructure);
 	
@@ -171,10 +175,74 @@ void TIM2_IRQHandler(void)
 	if(LL_TIM_IsActiveFlag_CC1(TIM2) == SET)
 	{
 		LL_TIM_ClearFlag_CC1(TIM2);
-		//LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_6);
+		if(blink_state == 1)
+			LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_6);
+		else
+			LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_6);
 	}
 }
 	
+void TIM4_R_BASE_Config(void)
+{
+	LL_TIM_InitTypeDef timbase_initstructure;
+	
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM4);
+	
+	timbase_initstructure.ClockDivision = LL_TIM_CLOCKDIVISION_DIV1;
+	timbase_initstructure.CounterMode = LL_TIM_COUNTERMODE_UP;
+	timbase_initstructure.Autoreload = 1024 - 1;
+	timbase_initstructure.Prescaler = 314 - 1;
+	
+	LL_TIM_Init(TIM4, &timbase_initstructure);
+
+}
+
+void TIM4_R_OC_GPIO_Config(void)
+{
+	LL_GPIO_InitTypeDef gpio_initstructure;
+	
+	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	
+	gpio_initstructure.Mode = LL_GPIO_MODE_ALTERNATE;
+	gpio_initstructure.Alternate = LL_GPIO_AF_2;
+	gpio_initstructure.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+	gpio_initstructure.Pin = LL_GPIO_PIN_6;
+	gpio_initstructure.Pull = LL_GPIO_PULL_NO;
+	gpio_initstructure.Speed = LL_GPIO_SPEED_FREQ_VERY_HIGH;
+	LL_GPIO_Init(GPIOB, &gpio_initstructure);
+}
+
+void TIM4_R_OC_Config(void)
+{
+	LL_TIM_OC_InitTypeDef tim_oc_initstructure;
+	
+	TIM4_R_BASE_Config();
+	TIM4_R_OC_GPIO_Config();
+	
+	tim_oc_initstructure.OCState = LL_TIM_OCSTATE_DISABLE;
+	tim_oc_initstructure.OCMode = LL_TIM_OCMODE_PWM1;
+	tim_oc_initstructure.OCPolarity = LL_TIM_OCPOLARITY_HIGH;
+	tim_oc_initstructure.CompareValue = LL_TIM_GetAutoReload(TIM4);
+	LL_TIM_OC_Init(TIM4, LL_TIM_CHANNEL_CH1, &tim_oc_initstructure);
+	/*Interrupt Configure*/
+	NVIC_SetPriority(TIM4_IRQn, 1);
+	NVIC_EnableIRQ(TIM4_IRQn);
+	LL_TIM_EnableIT_CC1(TIM4);
+	
+	/*Start Output Compare in PWM Mode*/
+	LL_TIM_CC_EnableChannel(TIM4, LL_TIM_CHANNEL_CH1);
+	LL_TIM_EnableCounter(TIM4);
+}
+
+
+void TIM4_IRQHandler(void)
+{
+	if(LL_TIM_IsActiveFlag_CC1(TIM4) == SET)
+	{
+		LL_TIM_ClearFlag_CC1(TIM4);
+	}
+}
+
 void SystemClock_Config(void)
 {
   /* Enable ACC64 access and set FLASH latency */ 
