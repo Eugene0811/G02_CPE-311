@@ -159,14 +159,6 @@ void TIM_BASE_DurationConfig(void)
 
 void TIM2_IRQHandler(void)
 {
-//	if(LL_TIM_IsActiveFlag_CC1(TIM2) == SET)
-//	{
-//		LL_TIM_ClearFlag_CC1(TIM2);
-//		if(blink_state == 1)
-//			LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_6);
-//		else
-//			LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_6);
-//	}
 		if(LL_TIM_IsActiveFlag_CC1(TIM2) == SET)
 	{
 		LL_TIM_ClearFlag_CC1(TIM2);
