@@ -82,7 +82,7 @@ int main()
 void ResetValue(void)
 {
 	sound_min = 1024;
-  sound_max = 0;	
+  	sound_max = 0;	
 }
 
 void setRG_LED(uint16_t value)
