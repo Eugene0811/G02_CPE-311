@@ -100,19 +100,6 @@ void DisplayOnLCD(void)
 
 void DisplayDanger(void)
 {
-//	if(decibel > 85)
-//		{
-//			blink_state = 1;
-//			danger_cnt++;
-//			if(danger_cnt==100)
-//			{
-//				USART_SendStream((uint8_t*)"Danger\r\n", sizeof("Danger\r\n"));
-//				LL_mDelay(500);
-//				danger_cnt = 0;	
-//			}	
-//		}
-//		else
-//			danger_cnt = 0;	
 	if(decibel > 85)
 		{
 			danger_cnt++;
