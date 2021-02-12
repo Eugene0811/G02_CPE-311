@@ -36,6 +36,7 @@ void USART_Config(void);
 void USART_SendStream(uint8_t* d, uint16_t s);
 void DisplayDanger(void);
 void setRG_LED(uint16_t value);
+void Find_MaxMin(void);
 void ResetValue(void);
 
 
@@ -56,13 +57,7 @@ int main()
 		
 		while(LL_TIM_IsActiveFlag_UPDATE(TIM2) == RESET) 
 		{
-			LL_ADC_REG_StartConversionSWStart(ADC1);
-			while(LL_ADC_IsActiveFlag_EOCS(ADC1)==0);
-			sound = ADC1->DR;
-			if(sound > sound_max)
-				sound_max = sound;
-			else if(sound < sound_min)
-				sound_min = sound;
+			Find_MaxMin();
 		}
 		LL_TIM_ClearFlag_UPDATE(TIM2);
 		
@@ -82,7 +77,18 @@ int main()
 void ResetValue(void)
 {
 	sound_min = 1024;
-  	sound_max = 0;	
+  sound_max = 0;	
+}
+
+void Find_MaxMin(void)
+{
+	LL_ADC_REG_StartConversionSWStart(ADC1);
+	while(LL_ADC_IsActiveFlag_EOCS(ADC1)==0);
+	sound = ADC1->DR;
+		if(sound > sound_max)
+			sound_max = sound;
+		else if(sound < sound_min)
+			sound_min = sound;
 }
 
 void setRG_LED(uint16_t value)
